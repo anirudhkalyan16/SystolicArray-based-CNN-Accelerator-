@@ -3,12 +3,12 @@ module fc2(
     input  logic rst,
     input  logic start,
     input  logic signed [31:0] fc1_in [0:7],
-    output logic signed [31:0] fc2_out [0:3],
+    output logic signed [31:0] fc2_out [0:2],
     output logic done
 );
 
-logic signed [7:0]  weights [0:31];
-logic signed [31:0] bias [0:3];
+logic signed [7:0]  weights [0:23];
+logic signed [31:0] bias [0:2];
 logic signed [39:0] prod [0:7];
 logic signed [47:0] sum;
 
@@ -29,7 +29,7 @@ always_ff @(posedge clk) begin
         busy <= 0;
         done <= 0;
 
-        for (int j = 0; j < 4; j++) begin
+        for (int j = 0; j < 3; j++) begin
             fc2_out[j] <= 0;
         end
     end
@@ -43,7 +43,7 @@ always_ff @(posedge clk) begin
     else if (busy) begin
         fc2_out[neuron_index] <= sum[31:0];
 
-        if (neuron_index == 3) begin
+        if (neuron_index == 2) begin
             busy <= 0;
             done <= 1;
         end
