@@ -16,11 +16,11 @@ logic busy;
 logic [2:0] neuron_index;
 
 initial begin
-    $readmemh("fc2_weights.hex", weights);
+    $readmemh("C:/Pdf files/sem v/SystolicArray-based-CNN-Accelerator-/fc2_weights.hex", weights);
 end
 
 initial begin
-    $readmemh("fc2_bias.hex", bias);
+    $readmemh("C:/Pdf files/sem v/SystolicArray-based-CNN-Accelerator-/fc2_bias.hex", bias);
 end
 
 always_ff @(posedge clk) begin

@@ -11,7 +11,7 @@ module window_extractor_8x8 (
     logic [5:0] base;
 
     initial begin
-        $readmemh("image.hex", image_mem);
+        $readmemh("C:/Pdf files/sem v/SystolicArray-based-CNN-Accelerator-/image.hex", image_mem);
     end
 
     always_comb begin

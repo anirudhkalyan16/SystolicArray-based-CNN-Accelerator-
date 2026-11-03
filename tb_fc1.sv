@@ -5,6 +5,13 @@ module tb_fc1;
     logic signed [31:0] pool_mem [0:8];
     logic signed [31:0] fc1_out [0:7];
     logic done;
+    accelerator_fsm dut_fsm(
+        .clk(clk),
+        .rst(rst),
+        .start(start),
+        .done(done),
+        .pool_mem(pool_mem)
+    );
     fc1 dut(
         .pool_mem(pool_mem),
         .clk(clk),
@@ -28,12 +35,12 @@ module tb_fc1;
         pool_mem[7] = 512;
         pool_mem[8] = 0;
 
-        // Hold reset for two rising edges
+        //Hold reset for two rising edges
         repeat(2) @(posedge clk);
         @(negedge clk);
         rst = 0;
-        // Start on a negative edge so it is stable
-        // before the next positive edge
+        //Start on a negative edge so it is stable
+        //before the next positive edge
         @(negedge clk);
         start = 1;
         @(negedge clk);
@@ -50,7 +57,7 @@ module tb_fc1;
         end
         $finish;
     end
-    // Debug
+    //Debug
     always @(posedge clk) begin
         $display(
             "time=%0t rst=%b start=%b busy=%b neuron=%0d done=%b sum=%0d",
@@ -63,7 +70,7 @@ module tb_fc1;
             dut.sum
         );
     end
-    // Prevent infinite simulation
+    //Prevent infinite simulation
     initial begin
         #1000;
         $display("ERROR: Simulation timed out");

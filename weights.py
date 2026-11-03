@@ -6,43 +6,28 @@ import struct
 import numpy as np
 import tensorflow as tf
 import kagglehub
-
-# SETUP
-
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
-
 cwd = os.getcwd()
 print("Current working directory:", cwd)
-
-# DOWNLOAD / LOCATE MNIST
-
 print("\nDownloading / locating MNIST...")
-
 kaggle_path = kagglehub.dataset_download("hojjatk/mnist-dataset")
 local_dataset_dir = os.path.join(cwd, "mnist_dataset")
-
 if not os.path.exists(local_dataset_dir):
     print("Copying MNIST into current working directory...")
     shutil.copytree(kaggle_path, local_dataset_dir)
-
 print("Dataset directory:", local_dataset_dir)
-
-
 def find_file(keyword):
     for root, _, files in os.walk(local_dataset_dir):
         for filename in files:
             if keyword in filename:
                 return os.path.join(root, filename)
     return None
-
-
 train_images_file = find_file("train-images")
 train_labels_file = find_file("train-labels")
 test_images_file = find_file("t10k-images")
 test_labels_file = find_file("t10k-labels")
-
 if None in [
     train_images_file,
     train_labels_file,
@@ -51,13 +36,10 @@ if None in [
 ]:
     raise FileNotFoundError("Could not find all required MNIST files.")
 
-# LOAD IDX FILES
-
 def open_mnist_file(filename):
     if filename.endswith(".gz"):
         return gzip.open(filename, "rb")
     return open(filename, "rb")
-
 
 def load_idx_images(filename):
     with open_mnist_file(filename) as file:
@@ -72,7 +54,6 @@ def load_idx_images(filename):
         data = np.frombuffer(file.read(), dtype=np.uint8)
 
     return data.reshape(number_images, rows, cols)
-
 
 def load_idx_labels(filename):
     with open_mnist_file(filename) as file:
@@ -89,73 +70,52 @@ def load_idx_labels(filename):
 
     return labels
 
-
 print("\nLoading MNIST...")
-
 x_train = load_idx_images(train_images_file)
 y_train_original = load_idx_labels(train_labels_file)
-
 x_test = load_idx_images(test_images_file)
 y_test_original = load_idx_labels(test_labels_file)
-
 print("Training:", x_train.shape, y_train_original.shape)
 print("Testing :", x_test.shape, y_test_original.shape)
-
-# CREATE 0 / 1 / NEITHER CLASSES
-
 y_train = np.where(
     y_train_original == 0,
     0,
     np.where(y_train_original == 1, 1, 2)
 )
-
 y_test = np.where(
     y_test_original == 0,
     0,
     np.where(y_test_original == 1, 1, 2)
 )
-
 print("\nOriginal 3-class training distribution:")
 print("Zero   :", np.sum(y_train == 0))
 print("One    :", np.sum(y_train == 1))
 print("Neither:", np.sum(y_train == 2))
-
-# BALANCE TRAINING SET
-
 idx_0 = np.where(y_train == 0)[0]
 idx_1 = np.where(y_train == 1)[0]
 idx_2 = np.where(y_train == 2)[0]
-
 samples_per_class = min(len(idx_0), len(idx_1), len(idx_2))
-
 idx_0 = np.random.choice(idx_0, samples_per_class, replace=False)
 idx_1 = np.random.choice(idx_1, samples_per_class, replace=False)
 idx_2 = np.random.choice(idx_2, samples_per_class, replace=False)
-
 training_indices = np.concatenate([idx_0, idx_1, idx_2])
 np.random.shuffle(training_indices)
-
 x_train = x_train[training_indices]
 y_train = y_train[training_indices]
-
 print("\nBalanced training set:")
 print("Total  :", len(x_train))
 print("Zero   :", np.sum(y_train == 0))
 print("One    :", np.sum(y_train == 1))
 print("Neither:", np.sum(y_train == 2))
-
 print("\nTest set:")
 print("Total  :", len(x_test))
 print("Zero   :", np.sum(y_test == 0))
 print("One    :", np.sum(y_test == 1))
 print("Neither:", np.sum(y_test == 2))
-
 # RESIZE 28x28 -> 8x8
-
 def resize_images(images):
     images = tf.convert_to_tensor(images, dtype=tf.float32)
     images = tf.expand_dims(images, axis=-1)
-
     resized = tf.image.resize(
         images,
         [8, 8],
@@ -166,16 +126,35 @@ def resize_images(images):
     resized = tf.cast(resized, tf.int32)
     resized = tf.squeeze(resized, axis=-1)
     return resized.numpy()
-
-
 print("\nResizing images...")
 x_train_8 = resize_images(x_train)
 x_test_8 = resize_images(x_test)
 print("Training:", x_train_8.shape)
 print("Testing :", x_test_8.shape)
 
-# HARDWARE PREPROCESSING
-# Sobel-X -> ReLU -> 2x2 MaxPool -> 9 values
+IMAGE_INDEX = int(np.random.default_rng().integers(0, len(x_test_8)))
+image_hex_path = os.path.join(cwd, "image.hex")
+with open(image_hex_path, "w") as file:
+    for pixel in x_test_8[IMAGE_INDEX].flatten():
+        file.write(format(int(pixel) & 0xFF, "02X") + "\n")
+
+print("\nRandom Image HEX file generated:")
+print("File:", image_hex_path)
+print("Image index:", IMAGE_INDEX)
+print("Actual class:", int(y_test[IMAGE_INDEX]))
+print("Pixel count:", x_test_8[IMAGE_INDEX].size)
+
+with open(image_hex_path, "r") as file:
+    image_hex_values = [line.strip() for line in file if line.strip()]
+
+if len(image_hex_values) != 64:
+    raise ValueError(f"image.hex must contain 64 values, found {len(image_hex_values)}")
+
+if any(len(value) != 2 or any(ch not in "0123456789ABCDEFabcdef" for ch in value)
+       for value in image_hex_values):
+    raise ValueError("image.hex contains an invalid hexadecimal pixel value")
+
+print("Verified image.hex: 64 valid hexadecimal values")
 
 sobel_x = np.array([
     [-1, 0, 1],
@@ -290,15 +269,11 @@ model.fit(
 training_time = time.perf_counter() - training_start
 print("\nTraining time:", training_time, "seconds")
 
-# FLOAT TEST
-
 test_loss, test_accuracy = model.evaluate(
     x_test_features,
     y_test,
     verbose=0
 )
-
-# Warm-up
 _ = model.predict(x_test_features[:100], verbose=0)
 
 inference_start = time.perf_counter()
@@ -313,10 +288,7 @@ python_inference_time = time.perf_counter() - inference_start
 predictions = np.argmax(logits, axis=1)
 python_latency = python_inference_time / len(x_test_features)
 python_throughput = len(x_test_features) / python_inference_time
-print("\n========================================")
 print("FLOAT PYTHON RESULTS")
-print("========================================")
-
 print("Test loss       :", test_loss)
 print("Test accuracy   :", test_accuracy * 100, "%")
 print("Latency         :", python_latency * 1000, "ms/image")
@@ -329,14 +301,11 @@ confusion = tf.math.confusion_matrix(
 )
 print("\nFloat confusion matrix:")
 print(confusion.numpy())
-
 for class_number in range(3):
     indices = np.where(y_test == class_number)[0]
-
     accuracy = np.mean(
         predictions[indices] == y_test[indices]
     )
-
     print(
         "Class",
         class_number,
@@ -345,9 +314,6 @@ for class_number in range(3):
         "%"
     )
 
-
-# GET TRAINED FC PARAMETERS
-
 fc1_weights, fc1_bias = model.get_layer("fc1").get_weights()
 fc2_weights, fc2_bias = model.get_layer("fc2").get_weights()
 print("\nParameter shapes:")
@@ -355,9 +321,6 @@ print("FC1 weights:", fc1_weights.shape)
 print("FC1 bias   :", fc1_bias.shape)
 print("FC2 weights:", fc2_weights.shape)
 print("FC2 bias   :", fc2_bias.shape)
-
-# QUANTIZATION
-
 WEIGHT_SCALE = 64
 fc1_weights_q = np.round(
     fc1_weights * WEIGHT_SCALE
@@ -425,8 +388,6 @@ print(
     np.max(fc2_bias_q)
 )
 
-# INTEGER / RTL-STYLE INFERENCE
-
 def integer_inference(features):
     predictions_int = []
     all_fc2_outputs = []
@@ -447,8 +408,6 @@ def integer_inference(features):
             if accumulator < 0:
                 accumulator = 0
             fc1_out[neuron] = accumulator
-
-        # FC2: 8 -> 3
         fc2_out = np.zeros(3, dtype=np.int64)
 
         for neuron in range(3):
@@ -672,8 +631,6 @@ with open(fc1_bias_path, "w") as file:
             to_hex32(fc1_bias_q[neuron]) + "\n"
         )
 
-# RTL ordering:
-# FC2 weights[(neuron * 8) + input]
 
 with open(fc2_weights_path, "w") as file:
     for neuron in range(3):
@@ -705,8 +662,7 @@ print("fc1_bias.hex   : 8 values")
 print("fc2_weights.hex: 24 values")
 print("fc2_bias.hex   : 3 values")
 
-# SAVE DATA FOR RTL COMPARISON
-
+=
 np.save(
     os.path.join(cwd, "x_test_8.npy"),
     x_test_8
@@ -737,8 +693,6 @@ np.save(
     integer_fc2_outputs
 )
 
-# FINAL SUMMARY
-
 print("FINAL SUMMARY")
 print("Training images:", len(x_train))
 print("Test images:", len(x_test))
@@ -752,4 +706,5 @@ print("fc1_weights.hex")
 print("fc1_bias.hex")
 print("fc2_weights.hex")
 print("fc2_bias.hex")
+print("image.hex")
 print("\nDone.")

@@ -14,19 +14,19 @@ logic signed [47:0] sum;
 logic busy;
 logic [2:0] neuron_index;
 
+initial begin
+    $readmemh("C:/Pdf files/sem v/SystolicArray-based-CNN-Accelerator-/fc1_weights.hex", weights);
+end
 
 initial begin
-    $readmemh("fc1_weights.hex", weights);
+    $readmemh("C:/Pdf files/sem v/SystolicArray-based-CNN-Accelerator-/fc1_bias.hex", bias);
 end
-initial begin
-    $readmemh("fc1_bias.hex", bias);
-end
+
 always_ff @(posedge clk) begin
     if (rst) begin
         neuron_index <= 0;
-        busy         <= 0;
-        done         <= 0;
-
+        busy <= 0;
+        done <= 0;
         for (int j = 0; j < 8; j++) begin
             fc1_out[j] <= 0;
         end
